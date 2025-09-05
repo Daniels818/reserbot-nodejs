@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReserBOT - Reservar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>ReserBOT - Hacer una reserva</h1>
+    
+    <form id="formReserva">
+      <div class="form-group">
+        <input type="text" name="nombre" id="nombre" placeholder="Nombre del cliente" required>
+      </div>
+      
+      <div class="form-group">
+        <input type="date" name="fecha" id="fecha" required>
+      </div>
+      
+      <div class="form-group">
+        <input type="time" name="hora" id="hora" required>
+      </div>
+      
+      <div class="form-group">
+        <select name="servicio" id="servicio" required>
+          <option value="">Selecciona un servicio</option>
+          <option value="Restaurante">Restaurante</option>
+          <option value="Hotel">Hotel</option>
+          <option value="Barbería">Barbería</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <button type="submit" id="btnReservar">Reservar</button>
+      </div>
+    </form>
+
+    <div id="mensaje" style="display: none;"></div>
+
+    <div class="reservas-section">
+      <h2>Reservas Registradas</h2>
+      <button onclick="cargarReservas()" class="btn-secondary">Actualizar Lista</button>
+      <div id="listaReservas">
+        <p>Cargando reservas...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cliente JavaScript para Node.js API
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("formReserva");
+        const mensaje = document.getElementById("mensaje");
+        const btnReservar = document.getElementById("btnReservar");
+
+        // Event listener para el formulario
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            const nombre = form.nombre.value.trim();
+            const fecha = form.fecha.value;
+            const hora = form.hora.value;
+            const servicio = form.servicio.value;
+
+            // Deshabilitar botón durante el envío
+            btnReservar.disabled = true;
+            btnReservar.textContent = "Procesando...";
+
+            try {
+                const response = await fetch('/api/reservas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nombre, fecha, hora, servicio })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    mostrarMensaje("✅ " + result.message, "success");
+                    form.reset();
+                    cargarReservas(); // Actualizar lista
+                } else {
+                    mostrarMensaje("❌ " + result.error, "error");
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarMensaje("❌ Error de conexión", "error");
+            } finally {
+                // Rehabilitar botón
+                btnReservar.disabled = false;
+                btnReservar.textContent = "Reservar";
+            }
+        });
+
+        // Función para mostrar mensajes
+        function mostrarMensaje(texto, tipo) {
+            mensaje.textContent = texto;
+            mensaje.style.padding = "15px";
+            mensaje.style.borderRadius = "8px";
+            mensaje.style.marginTop = "10px";
+            mensaje.style.fontWeight = "bold";
+            mensaje.style.textAlign = "center";
+            mensaje.style.display = "block";
+            
+            switch(tipo) {
+                case "error":
+                    mensaje.style.color = "white";
+                    mensaje.style.background = "#e74c3c";
+                    break;
+                case "success":
+                    mensaje.style.color = "white";
+                    mensaje.style.background = "#27ae60";
+                    break;
+                default:
+                    mensaje.style.color = "white";
+                    mensaje.style.background = "#3498db";
+            }
+
+            // Auto-ocultar después de 5 segundos
+            setTimeout(() => {
+                mensaje.style.display = "none";
+            }, 5000);
+        }
+
+        // Función global para cargar reservas
+        window.cargarReservas = async function() {
+            const listaReservas = document.getElementById("listaReservas");
+            listaReservas.innerHTML = '<p>Cargando reservas...</p>';
+
+            try {
+                const response = await fetch('/api/reservas');
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    if (result.data.length === 0) {
+                        listaReservas.innerHTML = '<p>No hay reservas registradas</p>';
+                        return;
+                    }
+
+                    let html = '';
+                    result.data.forEach(reserva => {
+                        html += `
+                            <div class="reserva-item">
+                                <strong>${reserva.nombre}</strong><br>
+                                📅 ${reserva.fecha} a las ${reserva.hora}<br>
+                                🏷️ ${reserva.servicio}<br>
+                                <small>Creada: ${new Date(reserva.creado_en).toLocaleString()}</small>
+                                <br>
+                                <button onclick="eliminarReserva(${reserva.id})" class="btn-delete">
+                                    Eliminar
+                                </button>
+                            </div>
+                        `;
+                    });
+
+                    listaReservas.innerHTML = html;
+                } else {
+                    listaReservas.innerHTML = '<p>Error al cargar reservas</p>';
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                listaReservas.innerHTML = '<p>Error de conexión</p>';
+            }
+        };
+
+        // Función global para eliminar reserva
+        window.eliminarReserva = async function(id) {
+            if (!confirm('¿Estás seguro de eliminar esta reserva?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/reservas/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    mostrarMensaje("✅ " + result.message, "success");
+                    cargarReservas();
+                } else {
+                    mostrarMensaje("❌ " + result.error, "error");
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarMensaje("❌ Error al eliminar reserva", "error");
+            }
+        };
+
+        // Cargar reservas al inicio
+        cargarReservas();
+
+        // Probar conexión al cargar
+        testearConexion();
+
+        async function testearConexion() {
+            try {
+                const response = await fetch('/api/test');
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Conexión con el servidor exitosa');
+                }
+            } catch (error) {
+                console.error('❌ Error de conexión:', error);
+            }
+        }
+    });
+  </script>
+</body>
+</html>
