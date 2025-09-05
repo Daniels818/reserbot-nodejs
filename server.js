@@ -14,10 +14,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // Configuración de Supabase
-const { createClient } = require('@supabase/supabase-js');
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://wcocmlzsswqktwutvgbi.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Ruta principal - servir index.html
 app.get('/', (req, res) => {
